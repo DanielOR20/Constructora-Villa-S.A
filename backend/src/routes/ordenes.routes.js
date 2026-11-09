@@ -6,7 +6,7 @@ const {
   aprobarOrden,
   getOrdenesDuplicadas
 } = require('../controllers/ordenes.controller');
-const { verifyToken } = require('../middlewares/auth.middleware');
+const { verifyToken, requireRoles } = require('../middlewares/auth.middleware');
 
 const router = Router();
 
@@ -17,7 +17,7 @@ const router = Router();
  * =============================================================================
  */
 
-// Auditoría de compras duplicadas
+// Auditoría de compras duplicadas y fugas de valor
 router.get('/duplicadas', getOrdenesDuplicadas);
 
 // Listar todas las órdenes de compra (opcionalmente filtradas por estado_aprobacion)
@@ -29,7 +29,12 @@ router.get('/:id', getOrdenById);
 // Registrar nueva orden de compra (aplica la Matriz de Aprobación según el monto)
 router.post('/', crearOrden);
 
-// Endpoint protegido: Aprobar o rechazar orden de compra verificando jerarquía JWT
-router.patch('/:id/aprobar', verifyToken, aprobarOrden);
+// Endpoint protegido con RBAC: Aprobar o rechazar orden verificando token JWT y roles autorizados
+router.patch(
+  '/:id/aprobar',
+  verifyToken,
+  requireRoles('jefatura_area', 'jefatura_compras', 'gerencia_financiera', 'gerencia_general'),
+  aprobarOrden
+);
 
 module.exports = router;

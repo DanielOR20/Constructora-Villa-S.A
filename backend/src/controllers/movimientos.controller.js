@@ -233,7 +233,7 @@ const createMovimiento = async (req, res, next) => {
       }
     }
 
-    // Ejecución del servicio transaccional
+    // Ejecución del servicio transaccional (maneja beginTransaction, FOR UPDATE, validación de stock, commit y rollback)
     const resultado = await movimientosService.registrarMovimientoTransaccional({
       tipo_movimiento: tipoNormalizado,
       id_material: materialId,
@@ -251,6 +251,30 @@ const createMovimiento = async (req, res, next) => {
       data: resultado
     });
   } catch (error) {
+    // Manejo de errores transaccionales de inventario (ej. intento de retiro mayor al stock disponible -> rollback)
+    if (error.statusCode === 400 || error.status === 400 || error.code === 'STOCK_INSUFICIENTE' || error.codigo === 'STOCK_INSUFICIENTE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          codigo: error.code || error.codigo || 'STOCK_INSUFICIENTE',
+          mensaje: error.message,
+          detalles: error.detalles || null,
+          statusCode: 400
+        }
+      });
+    }
+
+    if (error.statusCode === 404 || error.status === 404) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          codigo: error.code || 'MATERIAL_NO_ENCONTRADO',
+          mensaje: error.message,
+          statusCode: 404
+        }
+      });
+    }
+
     next(error);
   }
 };
