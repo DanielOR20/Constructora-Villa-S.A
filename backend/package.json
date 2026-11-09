@@ -1,0 +1,32 @@
+{
+  "name": "backend-constructora-del-valle",
+  "version": "1.0.0",
+  "description": "Sistema de Gestión de Inventarios y Auditoría de Compras - Constructora Del Valle S.A.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "seed": "node src/database/seed.js",
+    "test": "node --test test/**/*.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "mysql2": "^3.11.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  },
+  "keywords": [
+    "express",
+    "mysql2",
+    "inventory-management",
+    "punto-reorden",
+    "auditoria-compras",
+    "fugas-de-valor",
+    "barry-vega"
+  ],
+  "author": "Constructora Del Valle S.A.",
+  "license": "ISC"
+}

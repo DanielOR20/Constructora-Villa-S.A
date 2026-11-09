@@ -1,0 +1,25 @@
+{
+  "name": "constructora-del-valle-fullstack",
+  "version": "1.0.0",
+  "description": "Sistema Integral de Gestión de Inventarios & Auditoría de Compras - Constructora Del Valle S.A.",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "test": "npm --prefix backend test",
+    "seed": "npm --prefix backend run seed",
+    "build": "npm --prefix frontend run build"
+  },
+  "keywords": [
+    "inventory",
+    "reorder-point",
+    "mysql",
+    "express",
+    "react",
+    "tailwind",
+    "audit"
+  ],
+  "author": "Constructora Del Valle S.A.",
+  "license": "ISC"
+}
+

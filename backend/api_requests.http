@@ -1,0 +1,108 @@
+### ============================================================================
+### Constructora Del Valle S.A. - Colección de Pruebas de la API REST
+### ============================================================================
+@baseUrl = http://localhost:4000
+
+### 1. Health Check y Catálogo Interactivo
+GET {{baseUrl}}/
+Accept: application/json
+
+### ============================================================================
+### ALERTAS Y AUDITORÍA
+### ============================================================================
+
+### 2. Resumen Ejecutivo de Alertas (Inventario Crítico + Duplicados)
+GET {{baseUrl}}/api/alertas/resumen
+Accept: application/json
+
+### 3. Cálculo Matemático de Reorden (SS, PR y Estado CRITICO / ESTABLE)
+GET {{baseUrl}}/api/alertas/reorden
+Accept: application/json
+
+### 4. Filtrar Solo Materiales en Estado CRITICO (Stock <= PR)
+GET {{baseUrl}}/api/alertas/reorden/criticos
+Accept: application/json
+
+### 5. Auditoría Parte A: Órdenes de Compra Duplicadas (OC-1041 y OC-1042)
+GET {{baseUrl}}/api/alertas/duplicados?dias=3&tolerancia=0.05
+Accept: application/json
+
+### ============================================================================
+### MATERIALES
+### ============================================================================
+
+### 6. Listar Catálogo Completo de Materiales
+GET {{baseUrl}}/api/materiales
+Accept: application/json
+
+### 7. Consultar Material Específico por ID (Ej: Cemento gris 50 kg)
+GET {{baseUrl}}/api/materiales/1
+Accept: application/json
+
+### 8. Análisis de Reorden para un Material Específico
+GET {{baseUrl}}/api/materiales/1/reorden
+Accept: application/json
+
+### 9. Registrar Nuevo Material
+POST {{baseUrl}}/api/materiales
+Content-Type: application/json
+
+{
+  "codigo": "MAT-GRA-01",
+  "nombre": "Grava triturada 3/4 pulgada",
+  "descripcion": "Agregado grueso para concreto estructural",
+  "unidad_medida": "m3",
+  "precio_unitario": 420.00,
+  "stock_minimo": 15
+}
+
+### ============================================================================
+### ÓRDENES DE COMPRA
+### ============================================================================
+
+### 10. Listar Todas las Órdenes de Compra de Octubre
+GET {{baseUrl}}/api/ordenes
+Accept: application/json
+
+### 11. Detalle de Orden de Compra por ID con Partidas (Ej: OC-1041)
+GET {{baseUrl}}/api/ordenes/4
+Accept: application/json
+
+### 12. Detalle de Orden Duplicada (Ej: OC-1042)
+GET {{baseUrl}}/api/ordenes/5
+Accept: application/json
+
+### ============================================================================
+### MOVIMIENTOS E INVENTARIO
+### ============================================================================
+
+### 13. Historial de Movimientos de Inventario
+GET {{baseUrl}}/api/movimientos?limit=20
+Accept: application/json
+
+### 14. Filtrar Movimientos por Tipo (TRANSFERENCIA)
+GET {{baseUrl}}/api/movimientos?tipo=TRANSFERENCIA
+Accept: application/json
+
+### 15. Registrar un Nuevo Movimiento de Inventario
+POST {{baseUrl}}/api/movimientos
+Content-Type: application/json
+
+{
+  "tipo_movimiento": "TRANSFERENCIA",
+  "id_material": 1,
+  "id_bodega_origen": 1,
+  "id_bodega_destino": 2,
+  "cantidad": 50,
+  "documento_referencia": "DESP-OBR-105",
+  "observaciones": "Envío adicional de cemento para refuerzo"
+}
+
+### 16. Consultar Existencias por Bodega / Obra
+GET {{baseUrl}}/api/inventario/stock
+Accept: application/json
+
+### 17. Consultar Stock Consolidado Global de Materiales
+GET {{baseUrl}}/api/inventario/consolidado
+Accept: application/json
+
