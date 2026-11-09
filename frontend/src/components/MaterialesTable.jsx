@@ -96,7 +96,7 @@ export default function MaterialesTable({ reordenData = [], onRefresh }) {
           <button
             onClick={() => setFilter('ESTABLE')}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
-              filter === 'ESTABLE' ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-700 hover:bg-zinc-200'
+              filter === 'ESTABLE' ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30' : 'text-emerald-800 hover:bg-emerald-50'
             }`}
           >
             Estables ({totalEstables})
@@ -234,12 +234,12 @@ export default function MaterialesTable({ reordenData = [], onRefresh }) {
 
                       {/* Estado */}
                       <td className="px-4 py-3.5 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black ${
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black shadow-sm ${
                           isCritico 
-                            ? 'bg-red-600 text-white shadow-sm shadow-red-600/30' 
+                            ? 'bg-red-600 text-white shadow-red-600/30' 
                             : isAdvertencia
-                            ? 'bg-zinc-800 text-white'
-                            : 'bg-zinc-100 text-zinc-800 border border-zinc-300'
+                            ? 'bg-amber-600 text-white shadow-amber-600/30'
+                            : 'bg-emerald-600 text-white shadow-emerald-600/30'
                         }`}>
                           {isCritico ? (
                             <>
@@ -248,12 +248,12 @@ export default function MaterialesTable({ reordenData = [], onRefresh }) {
                             </>
                           ) : isAdvertencia ? (
                             <>
-                              <AlertCircle className="w-3.5 h-3.5 mr-1 text-zinc-400" />
+                              <AlertCircle className="w-3.5 h-3.5 mr-1 text-white" />
                               ADVERTENCIA
                             </>
                           ) : (
                             <>
-                              <CheckCircle className="w-3.5 h-3.5 mr-1 text-zinc-700" />
+                              <CheckCircle className="w-3.5 h-3.5 mr-1 text-white" />
                               ESTABLE
                             </>
                           )}

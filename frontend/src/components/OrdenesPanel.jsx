@@ -30,8 +30,8 @@ export default function OrdenesPanel({ onVerDuplicados }) {
   // Usuario y sesión simulada para demostración de RBAC
   const [usuarioActual, setUsuarioActual] = useState(getUsuarioSesion() || {
     id_usuario: 2,
-    nombre: 'Lic. Sofía Ramírez',
-    email: 'sofia.ramirez@constructoradelvalle.com',
+    nombre: 'Carlos Mora',
+    email: 'carlos.mora@constructoradelvalle.com',
     rol: 'jefatura_compras'
   });
   const [loginLoading, setLoginLoading] = useState(false);
@@ -50,10 +50,10 @@ export default function OrdenesPanel({ onVerDuplicados }) {
   });
 
   const usuariosDemo = [
-    { id: 1, nombre: 'Ing. Carlos Mendoza', email: 'carlos.mendoza@constructoradelvalle.com', rol: 'jefatura_area', limite: 'Hasta ₡250k' },
-    { id: 2, nombre: 'Lic. Sofía Ramírez', email: 'sofia.ramirez@constructoradelvalle.com', rol: 'jefatura_compras', limite: '₡250k a ₡2M' },
-    { id: 3, nombre: 'C.P. Fernando Castro', email: 'fernando.castro@constructoradelvalle.com', rol: 'gerencia_financiera', limite: '₡2M a ₡10M' },
-    { id: 4, nombre: 'Ing. Daniel Ortega', email: 'daniel.ortega@constructoradelvalle.com', rol: 'gerencia_general', limite: '> ₡10M + Comité' }
+    { id: 1, nombre: 'Juan Pérez', email: 'juan.perez@constructoradelvalle.com', rol: 'jefatura_area', cargo: 'Jefatura de Obras', limite: 'Hasta ₡250k' },
+    { id: 2, nombre: 'Carlos Mora', email: 'carlos.mora@constructoradelvalle.com', rol: 'jefatura_compras', cargo: 'Jefatura de Compras', limite: '₡250k a ₡2M' },
+    { id: 3, nombre: 'Ana Gómez', email: 'ana.gomez@constructoradelvalle.com', rol: 'gerencia_financiera', cargo: 'Gerencia Financiera', limite: '₡2M a ₡10M' },
+    { id: 4, nombre: 'Luis Rojas', email: 'luis.rojas@constructoradelvalle.com', rol: 'gerencia_general', cargo: 'Gerencia General', limite: '> ₡10M + Comité' }
   ];
 
   useEffect(() => {
@@ -418,12 +418,12 @@ export default function OrdenesPanel({ onVerDuplicados }) {
 
                       {/* Estado Aprobación */}
                       <td className="px-4 py-3.5 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black ${
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-black shadow-sm ${
                           esAprobada 
-                            ? 'bg-zinc-900 text-white' 
+                            ? 'bg-emerald-600 text-white shadow-emerald-600/30' 
                             : esRechazada 
-                            ? 'bg-red-600 text-white' 
-                            : 'bg-zinc-200 text-zinc-800 animate-pulse'
+                            ? 'bg-red-600 text-white shadow-red-600/30' 
+                            : 'bg-amber-100 text-amber-900 border border-amber-300'
                         }`}>
                           {oc.estado_aprobacion ? oc.estado_aprobacion.toUpperCase() : 'PENDIENTE'}
                         </span>

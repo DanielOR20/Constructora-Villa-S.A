@@ -30,6 +30,18 @@ export default function Dashboard({
     (m) => (m.evaluacion?.estado || m.estadoReposicion || m.estado) === 'ESTABLE'
   );
 
+  // Cálculo dinámico del valor financiero total del inventario
+  const valorTotalInventario = (reordenData || []).reduce((acc, m) => {
+    const stock = m.metricas_inventario?.stock_actual ?? (m.stockActual !== undefined ? m.stockActual : 0);
+    const precio = Number(m.precio_unitario || m.material?.precio_unitario || 0);
+    return acc + (stock * precio);
+  }, 0);
+
+  const valorTotalInventarioFormateado = `₡${valorTotalInventario.toLocaleString('es-CR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`;
+
   const reporteDup = duplicadosData?.data || duplicadosData;
   const totalCasosDuplicados = reporteDup?.resumen_ejecutivo?.total_casos_duplicados ?? 
     (reporteDup?.auditoria_compras_duplicadas?.length || reporteDup?.casos?.length || 0);
@@ -58,7 +70,7 @@ export default function Dashboard({
             Dashboard Ejecutivo de Inventarios
           </h2>
           <p className="text-sm text-zinc-500 mt-0.5">
-            Métricas clave, monitoreo de puntos de reorden y auditoría de compras
+            Métricas financieras y operativas, monitoreo de puntos de reorden y auditoría de compras
           </p>
         </div>
 
@@ -70,8 +82,8 @@ export default function Dashboard({
         </div>
       </div>
 
-      {/* 4 TARJETAS CON MÉTRICAS CLAVE (KPIs) - ROJO, BLANCO Y NEGRO */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* 5 TARJETAS CON MÉTRICAS CLAVE (KPIs FINANCIEROS Y OPERATIVOS) - ROJO, BLANCO Y NEGRO */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* KPI 1: Total Catálogo */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-200 hover:border-zinc-300 transition">
           <div className="flex items-center justify-between">
@@ -85,12 +97,32 @@ export default function Dashboard({
           <div className="mt-3">
             <h3 className="text-3xl font-black text-zinc-950 font-mono">{totalMateriales}</h3>
             <p className="text-xs text-zinc-500 mt-1 font-medium">
-              Insumos activos (cemento, varilla, block, arena)
+              Insumos activos catálogo
             </p>
           </div>
         </div>
 
-        {/* KPI 2: Ítems en Estado Crítico (Resaltado en Rojo) */}
+        {/* KPI 2: Valor Total de Inventario (Métrica Financiera en Colones ₡) */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-200 hover:border-zinc-300 transition">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">
+              Valor Inventario
+            </span>
+            <div className="p-2.5 rounded-xl bg-zinc-950 text-white border border-zinc-800">
+              <DollarSign className="w-5 h-5 text-red-500" />
+            </div>
+          </div>
+          <div className="mt-3">
+            <h3 className="text-2xl font-black text-zinc-950 font-mono truncate" title={valorTotalInventarioFormateado}>
+              {valorTotalInventarioFormateado}
+            </h3>
+            <p className="text-xs text-zinc-500 mt-1 font-medium">
+              Valorización física actual
+            </p>
+          </div>
+        </div>
+
+        {/* KPI 3: Ítems en Estado Crítico (Resaltado en Rojo Carmesí) */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border-2 border-red-600 hover:shadow-md transition relative overflow-hidden">
           <div className="absolute top-0 right-0 w-2 h-full bg-red-600"></div>
           <div className="flex items-center justify-between">
@@ -104,34 +136,36 @@ export default function Dashboard({
           <div className="mt-3">
             <h3 className="text-3xl font-black text-red-600 font-mono">{criticos.length}</h3>
             <p className="text-xs text-red-700 font-semibold mt-1">
-              {criticos.length > 0 ? 'Requiere emisión inmediata de OC' : 'Inventario por encima del reorden'}
+              {criticos.length > 0 ? 'Reposición urgente requerida' : 'Inventario sobre reorden'}
             </p>
           </div>
         </div>
 
-        {/* KPI 3: Alertas Activas & Fugas de Valor */}
+        {/* KPI 4: Alertas Activas & Fugas de Valor */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-200 hover:border-zinc-300 transition relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-zinc-600 uppercase tracking-wider">
-              Alertas de Auditoría
+              Fugas de Valor
             </span>
             <div className="p-2.5 rounded-xl bg-zinc-900 text-white">
-              <CopyX className="w-5 h-5" />
+              <CopyX className="w-5 h-5 text-red-400" />
             </div>
           </div>
           <div className="mt-3">
-            <h3 className="text-3xl font-black text-zinc-950 font-mono">{totalAlertasActivas}</h3>
+            <h3 className="text-2xl font-black text-zinc-950 font-mono truncate" title={fugaValorTotalFormateada}>
+              {fugaValorTotalFormateada}
+            </h3>
             <p className="text-xs text-red-600 font-bold mt-1">
-              Fuga identificada: {fugaValorTotalFormateada}
+              {totalAlertasActivas} alerta(s) de auditoría
             </p>
           </div>
         </div>
 
-        {/* KPI 4: Movimientos Totales */}
+        {/* KPI 5: Movimientos Auditados */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-200 hover:border-zinc-300 transition">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-              Movimientos Totales
+              Movimientos
             </span>
             <div className="p-2.5 rounded-xl bg-zinc-100 text-zinc-900 border border-zinc-200">
               <TrendingUp className="w-5 h-5" />
@@ -140,7 +174,7 @@ export default function Dashboard({
           <div className="mt-3">
             <h3 className="text-3xl font-black text-zinc-950 font-mono">{movimientos?.length || 0}</h3>
             <p className="text-xs text-zinc-500 mt-1 font-medium">
-              Transacciones ACID auditadas
+              Transacciones auditadas
             </p>
           </div>
         </div>
