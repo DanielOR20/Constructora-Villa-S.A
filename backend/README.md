@@ -1,7 +1,7 @@
 # Sistema de Gestión de Inventarios & Auditoría de Compras (Nivel Empresarial)
-## Constructora Del Valle S.A. — Parte B (Caso de Estudio: Quiz Barry Vega)
+## Constructora Del Valle S.A. — Parte A & B (Caso de Estudio: Quiz Barry Vega)
 
-Infraestructura de Backend robusta, desacoplada y de nivel industrial desarrollada con **Node.js**, **Express** y **MySQL** (`mysql2/promise`).
+Infraestructura de Backend robusta, desacoplada y de nivel industrial desarrollada con **Node.js**, **Express**, **MySQL** (`mysql2/promise`), **Autenticación JWT**, **Control de Acceso Basado en Roles (RBAC)** y el **Motor de la Matriz de Aprobación de Órdenes de Compra**.
 
 ---
 
@@ -13,31 +13,36 @@ backend/
 │   ├── config/
 │   │   └── db.js                         # Pool MySQL2 con reintentos y lectura .env
 │   ├── database/
-│   │   ├── schema.sql                    # DDL normalizado con claves foráneas CASCADE
-│   │   ├── seed.sql                      # DML con insumos de Barry Vega y órdenes de octubre
+│   │   ├── schema.sql                    # DDL normalizado con claves foráneas, usuarios y matriz
+│   │   ├── seed.sql                      # DML con insumos, usuarios por rol y órdenes de compra
 │   │   └── seed.js                       # Runner ejecutable (npm run seed)
 │   ├── middlewares/
-│   │   └── error.middleware.js           # Manejo global de excepciones MySQL/Express (400, 404, 409, 500)
+│   │   ├── auth.middleware.js            # verifyToken (JWT), requireRoles y jerarquía RBAC
+│   │   └── error.middleware.js           # Manejo global de excepciones MySQL/Express
 │   ├── services/
-│   │   ├── materiales.service.js         # CRUD SQL y cálculo dinámico de stock (entradas - salidas)
+│   │   ├── auth.service.js               # Registro seguro (bcrypt), Login (JWT) y perfiles
+│   │   ├── ordenes.service.js            # Motor de Matriz de Aprobación, creación y firma digital
+│   │   ├── materiales.service.js         # CRUD SQL y cálculo dinámico de stock
 │   │   ├── movimientos.service.js        # Transacciones ACID estrictas (beginTransaction, commit, rollback)
-│   │   ├── reorden.service.js            # Motor matemático con Math.ceil y estados CRÍTICO, ADVERTENCIA, ESTABLE
-│   │   ├── duplicados.service.js         # Auditoría de compras duplicadas y fugas de valor en colones (₡)
-│   │   ├── alertas.service.js            # Consulta centralizada de insumos bajo punto de reorden
-│   │   └── ordenes.service.js            # Consultas de compras y proveedores
+│   │   ├── reorden.service.js            # Motor matemático con Math.ceil y estados de inventario
+│   │   ├── duplicados.service.js         # Auditoría de compras duplicadas y sobreprecios en colones (₡)
+│   │   └── alertas.service.js            # Consulta centralizada de insumos bajo punto de reorden
 │   ├── controllers/
+│   │   ├── auth.controller.js            # Registro, login, perfil y listado de usuarios
+│   │   ├── ordenes.controller.js         # Aprobación y rechazo jerárquico de órdenes
 │   │   ├── materiales.controller.js      # Validaciones numéricas y códigos HTTP limpios
-│   │   ├── movimientos.controller.js     # Validaciones de enums y captura de stock insuficiente (HTTP 400)
-│   │   ├── alertas.controller.js         # Respuestas JSON estructuradas de reorden
-│   │   └── ordenes.controller.js         # Controlador de auditoría de adquisiciones
+│   │   ├── movimientos.controller.js     # Validaciones transaccionales y captura de saldo negativo
+│   │   └── alertas.controller.js         # Respuestas JSON de reorden
 │   ├── routes/
+│   │   ├── auth.routes.js                # /api/auth (register, login, me, usuarios)
+│   │   ├── ordenes.routes.js             # /api/ordenes (GET, POST, PATCH /:id/aprobar)
 │   │   ├── materiales.routes.js          # /api/materiales
 │   │   ├── movimientos.routes.js         # /api/movimientos
 │   │   ├── alertas.routes.js             # /api/alertas
-│   │   ├── ordenes.routes.js             # /api/ordenes
 │   │   └── inventario.routes.js          # /api/inventario
 │   └── index.js                          # Servidor Express, CORS, puerto 4000
 ├── test/
+│   ├── aprobacion-matrix.test.js         # Pruebas unitarias de la matriz de aprobación, bcrypt y JWT
 │   ├── reorden.test.js                   # Pruebas unitarias de reorden riguroso (Math.ceil)
 │   └── transaccion-stock.test.js         # Pruebas unitarias de rechazo de saldo negativo
 ├── .env.example
@@ -48,111 +53,78 @@ backend/
 
 ---
 
-## 🔒 1. Gestión Transaccional ACID en Inventario (`movimientos.service.js`)
+## 🔐 1. Seguridad, Autenticación JWT y Roles (RBAC)
+
+El sistema implementa control de acceso jerárquico mediante tokens Bearer firmados con `jsonwebtoken` y almacenamiento de credenciales cifradas con `bcryptjs`:
+
+### Roles del Sistema y Cuentas Semilla
+Todas las cuentas de prueba iniciales tienen la contraseña: **`Password123!`**
+
+| Rol | Usuario de Prueba | Correo Electrónico | Nivel Jerárquico |
+| :--- | :--- | :--- | :---: |
+| `jefatura_area` | Ing. Carlos Mendoza | `carlos.mendoza@constructoradelvalle.com` | Nivel 1 |
+| `jefatura_compras` | Lic. Sofía Ramírez | `sofia.ramirez@constructoradelvalle.com` | Nivel 2 |
+| `gerencia_financiera` | C.P. Fernando Castro | `fernando.castro@constructoradelvalle.com` | Nivel 3 |
+| `gerencia_general` | Ing. Daniel Ortega | `daniel.ortega@constructoradelvalle.com` | Nivel 4 |
+
+---
+
+## 📋 2. Motor de la Matriz de Aprobación de Órdenes de Compra
+
+Al registrarse cualquier orden de compra (`POST /api/ordenes`), el backend evalúa automáticamente el monto total en colones ($\unicode{x20A1}$) y le asigna el rol aprobador requerido:
+
+| Rango de Monto de la Requisición | Rol Mínimo Requerido | Autoridad Competente |
+| :--- | :--- | :--- |
+| **Hasta ₡250,000.00** | `jefatura_area` | Jefatura de Área |
+| **De ₡250,001.00 a ₡2,000,000.00** | `jefatura_compras` | Jefatura de Compras |
+| **De ₡2,000,001.00 a ₡10,000,000.00** | `gerencia_financiera` | Gerencia Financiera |
+| **Superior a ₡10,000,000.00** | `gerencia_general` | Gerencia General + Comité |
+
+### Reglas de Negocio en la Firma Digital (`PATCH /api/ordenes/:id/aprobar`):
+1. **Verificación de Token:** El firmante debe enviar su `Bearer <token>` válido en el header `Authorization`.
+2. **Validación Jerárquica:** Si un usuario de menor jerarquía (ej. `jefatura_area`, Nivel 1) intenta autorizar una orden que requiere `gerencia_financiera` (Nivel 3), el sistema rechaza la operación inmediatamente con **`HTTP 403 Forbidden`** e informa el déficit de nivel.
+3. **Delegación Ascendente:** Un rol superior (ej. `gerencia_general`) cuenta con facultades para autorizar órdenes de cualquier nivel inferior o igual al suyo.
+4. **Rechazo Fundamentado:** Al rechazar una orden (`accion: 'rechazada'`), el sistema exige obligatoriamente consignar el motivo técnico de la objeción.
+
+---
+
+## 🔒 3. Gestión Transaccional ACID en Inventario (`movimientos.service.js`)
 
 Toda operación de salida o traslado se procesa dentro de una transacción estricta utilizando `mysql2/promise`:
-1. **Inicio de Transacción:** `await connection.beginTransaction()`
-2. **Bloqueo y Consulta en Tiempo Real:** Bloquea las filas del material con `FOR UPDATE` y suma entradas contra salidas:
-   $$\text{Stock Actual} = \sum \text{Entradas} - \sum \text{Salidas} + \sum \text{Ajustes}$$
-3. **Validación Antisalida Negativa:** Si $\text{Stock Actual} - \text{Cantidad Solicitada} < 0$:
-   - Se ejecuta inmediatamente `await connection.rollback()`.
-   - Se libera la conexión: `connection.release()`.
-   - Se lanza un error con código HTTP **`400 Bad Request`** y código `'STOCK_INSUFICIENTE'`, detallando el saldo actual y la cantidad excedida.
-4. **Inserción y Actualización:** Inserta en `movimientos` y actualiza `inventario_stock`.
-5. **Confirmación:** `await connection.commit()`.
+1. `await connection.beginTransaction()`
+2. Bloqueo pesimista con `SELECT ... FOR UPDATE`.
+3. Si $\text{Stock Actual} - \text{Cantidad} < 0$:
+   - Se ejecuta `await connection.rollback()`.
+   - Se devuelve **`HTTP 400 Bad Request`** con código `'STOCK_INSUFICIENTE'`.
+4. Si hay existencias: Inserción en `movimientos`, actualización en `inventario_stock` y `await connection.commit()`.
 
 ---
 
-## 🧮 2. Motor Matemático de Reorden Riguroso (`reorden.service.js`)
+## 🧮 4. Motor Matemático de Reorden Riguroso (`reorden.service.js`)
 
-Implementa las fórmulas del quiz aplicando redondeo hacia arriba mediante **`Math.ceil`**:
-
-1. **Stock de Seguridad ($SS$):**
-   $$SS = \lceil (D_{max} - D_{prom}) \times \text{Lead Time} \rceil$$
-
-2. **Punto de Reorden ($PR$):**
-   $$PR = \lceil D_{prom} \times \text{Lead Time} \rceil + SS$$
-
-3. **Métricas Analíticas Devueltas por Material:**
-   - `stockActual`: Saldo real disponible (entradas - salidas).
-   - `stockSeguridad`: Valor de $SS$.
-   - `puntoReorden`: Valor de $PR$.
-   - `deficit`: $\max(0, PR - \text{stockActual})$ (unidades requeridas para alcanzar el umbral).
-   - `margenNeto`: $\text{stockActual} - PR$.
-   - `estadoReposicion`:
-     - **`CRITICO`**: Si $\text{stockActual} \le PR$.
-     - **`ADVERTENCIA`**: Si $PR < \text{stockActual} \le \lceil PR \times 1.25 \rceil$.
-     - **`ESTABLE`**: Si $\text{stockActual} > \lceil PR \times 1.25 \rceil$.
-   - `cantidadSugeridaCompra`: Unidades sugeridas para alcanzar una cobertura óptima ($PR \times 1.5$).
+Fórmulas matemáticas exactas con redondeo hacia arriba (`Math.ceil`):
+- **Stock de Seguridad ($SS$):** $\lceil (D_{max} - D_{prom}) \times \text{Lead Time} \rceil$
+- **Punto de Reorden ($PR$):** $\lceil D_{prom} \times \text{Lead Time} \rceil + SS$
+- **Estados:** `CRITICO` ($\text{Stock} \le PR$), `ADVERTENCIA` ($PR < \text{Stock} \le \lceil PR \times 1.25 \rceil$), `ESTABLE` ($> \lceil PR \times 1.25 \rceil$).
 
 ---
 
-## 🔍 3. Motor de Auditoría de Compras Duplicadas y Fugas de Valor (`duplicados.service.js`)
+## 🔍 5. Auditoría de Compras Duplicadas (Parte A) y Sobreprecios
 
-Moneda oficial del informe: **Colones costarricenses (₡)**.
-
-El motor evalúa dos dimensiones de fuga de valor:
-1. **Compras Duplicadas:**
-   - Mismo proveedor (`oc1.id_proveedor = oc2.id_proveedor`).
-   - Mismo material (`d1.id_material = d2.id_material`).
-   - Cantidades con variación menor al 10% ($\le 10\%$).
-   - Ventana temporal de hasta 3 días entre órdenes ($\Delta \text{días} \le 3$).
-   - *Caso Barry Vega Detectado:* Órdenes **`OC-1041`** y **`OC-1042`** emitidas a **Proveedor A** (500 sacos de cemento y 300 varillas #3, fuga de **`₡130,250.00`**).
-2. **Sobreprecios y Compras Fuera de Contrato:**
-   - Compara el precio unitario pagado en la orden frente al precio contractual de lista en catálogo (`materiales.precio_unitario`).
-   - Si $\text{Precio Pagado} > \text{Precio Contrato}$:
-     $$\text{Fuga por Sobreprecio} = (\text{Precio Pagado} - \text{Precio Contrato}) \times \text{Cantidad}$$
-3. **Cuantificación Consolidada:** Reporta la fuga de valor total formateada con el símbolo **`₡`** (ej: `₡130,250.00`).
+Moneda oficial: **Colones costarricenses ($\unicode{x20A1}$)**.
+- **Caso Barry Vega Detectado:** Órdenes **`OC-1041`** y **`OC-1042`** emitidas a **Proveedor A** (500 sacos de cemento y 300 varillas #3, impacto duplicado de **$\unicode{x20A1}130,250.00$**).
 
 ---
 
-## 🛡️ 4. Validaciones de Entrada en Controladores
+## 🧪 Pruebas Automatizadas (14 Tests Nativos)
 
-- **Validación de Tipos y Rangos:** Cantidades $> 0$, precios $\ge 0$, identificadores numéricos enteros positivos.
-- **Tipos de Movimientos:** Enums aceptados: `'ENTRADA'`, `'SALIDA'`, `'TRANSFERENCIA'`, `'TRASLADO'`, `'AJUSTE'` (case-insensitive).
-- **Respuestas HTTP Estandarizadas:**
-  - `200 OK`: Consultas y actualizaciones exitosas.
-  - `201 Created`: Registros nuevos creados.
-  - `400 Bad Request`: Datos de entrada inválidos o stock insuficiente para salidas.
-  - `404 Not Found`: Recurso no encontrado.
-  - `409 Conflict`: Claves duplicadas o violación de unicidad.
-  - `500 Internal Server Error`: Errores no controlados procesados por el middleware.
-
----
-
-## 🚨 5. Middleware Global de Manejo de Errores (`src/middlewares/error.middleware.js`)
-
-Captura excepciones de MySQL (`ER_DUP_ENTRY`, `ER_NO_REFERENCED_ROW`, `ECONNREFUSED`) y errores de Express, respondiendo con un JSON limpio que garantiza la estabilidad ininterrumpida del servidor:
-```json
-{
-  "success": false,
-  "error": {
-    "codigo": "STOCK_INSUFICIENTE",
-    "mensaje": "Operación rechazada por falta de existencias...",
-    "statusCode": 400,
-    "timestamp": "2026-11-09T17:35:00.000Z",
-    "ruta": "/api/movimientos"
-  }
-}
-```
-
----
-
-## 🚀 Puesta en Marcha y Pruebas
-
+Ejecuta el conjunto completo de pruebas con:
 ```bash
-# 1. Instalar dependencias
-cd backend
-npm install
-
-# 2. Migrar y sembrar base de datos
-npm run seed
-
-# 3. Ejecutar pruebas unitarias automatizadas
 npm test
-
-# 4. Iniciar servidor en modo desarrollo
-npm run dev
 ```
-
-El servidor estará escuchando en **`http://localhost:4000`**.
+Resultados:
+- ✔ 6 pruebas de la Matriz de Aprobación y Jerarquías.
+- ✔ 2 pruebas de Cifrado Bcrypt y Emisión de JWT.
+- ✔ 4 pruebas de Fórmulas Matemáticas de Reorden (`Math.ceil`).
+- ✔ 2 pruebas de Validación Transaccional de Saldo Negativo.
+- **Total:** 14 pruebas pasando al 100% sin dependencias externas usando `node:test`.

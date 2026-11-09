@@ -5,6 +5,7 @@ const cors = require('cors');
 const { testConnection } = require('./config/db');
 
 // Importación de módulos de enrutamiento
+const authRoutes = require('./routes/auth.routes');
 const materialesRoutes = require('./routes/materiales.routes');
 const movimientosRoutes = require('./routes/movimientos.routes');
 const alertasRoutes = require('./routes/alertas.routes');
@@ -22,7 +23,7 @@ const PORT = process.env.PORT || 4000;
 // =============================================================================
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
@@ -44,11 +45,24 @@ app.use((req, res, next) => {
 app.get('/', (req, res) => {
   res.status(200).json({
     sistema: 'Gestión de Inventarios - Constructora Del Valle S.A.',
-    subtitulo: 'Sistema Transaccional y Motor de Reorden - Nivel Empresarial',
-    caso_estudio: 'Auditoría de Inventarios y Compras (Quiz Barry Vega - Parte B)',
+    subtitulo: 'Autenticación JWT, RBAC y Matriz de Aprobación de Compras',
+    caso_estudio: 'Auditoría de Inventarios y Compras (Quiz Barry Vega - Parte A & B)',
     estado: 'EN_LINEA',
     puerto: PORT,
     documentacion_endpoints: {
+      auth: {
+        registro: 'POST /api/auth/register',
+        login: 'POST /api/auth/login (Genera Bearer JWT)',
+        perfil: 'GET /api/auth/me (Requiere Bearer token)',
+        usuarios: 'GET /api/auth/usuarios (Requiere rol directivo o compras)'
+      },
+      ordenes: {
+        listar: 'GET /api/ordenes (?estado_aprobacion=pendiente)',
+        detalle: 'GET /api/ordenes/:id (Incluye matriz y partidas)',
+        crear: 'POST /api/ordenes (Calcula automáticamente rol requerido)',
+        aprobar_o_rechazar: 'PATCH /api/ordenes/:id/aprobar (Valida jerarquía JWT según matriz)',
+        auditoria_duplicados: 'GET /api/ordenes/duplicadas'
+      },
       materiales: {
         listar: 'GET /api/materiales',
         detalle: 'GET /api/materiales/:id',
@@ -71,11 +85,6 @@ app.get('/', (req, res) => {
         insumos_advertencia: 'GET /api/alertas/reorden/advertencias (PR < Stock <= PR * 1.25)',
         reorden_individual: 'GET /api/alertas/reorden/:id',
         auditoria_fugas_valor: 'GET /api/alertas/duplicados (Cuantificación en colones ₡)'
-      },
-      ordenes: {
-        listar: 'GET /api/ordenes',
-        detalle_con_partidas: 'GET /api/ordenes/:id',
-        motor_auditoria_fugas: 'GET /api/ordenes/duplicadas'
       }
     }
   });
@@ -84,6 +93,7 @@ app.get('/', (req, res) => {
 // =============================================================================
 // REGISTRO DE RUTAS DE LA API REST
 // =============================================================================
+app.use('/api/auth', authRoutes);
 app.use('/api/materiales', materialesRoutes);
 app.use('/api/movimientos', movimientosRoutes);
 app.use('/api/alertas', alertasRoutes);

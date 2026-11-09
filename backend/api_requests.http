@@ -1,108 +1,182 @@
 ### ============================================================================
 ### Constructora Del Valle S.A. - Colección de Pruebas de la API REST
+### Seguridad: Autenticación JWT, Control de Roles y Matriz de Aprobación
 ### ============================================================================
 @baseUrl = http://localhost:4000
+@authToken = {{loginJefaturaCompras.response.body.data.token}}
 
-### 1. Health Check y Catálogo Interactivo
+### 1. Health Check y Catálogo Interactivo de la API
 GET {{baseUrl}}/
 Accept: application/json
 
 ### ============================================================================
-### ALERTAS Y AUDITORÍA
+### SEGURIDAD & AUTENTICACIÓN (JWT & RBAC)
+### Roles: jefatura_area | jefatura_compras | gerencia_financiera | gerencia_general
 ### ============================================================================
 
-### 2. Resumen Ejecutivo de Alertas (Inventario Crítico + Duplicados)
-GET {{baseUrl}}/api/alertas/resumen
-Accept: application/json
-
-### 3. Cálculo Matemático de Reorden (SS, PR y Estado CRITICO / ESTABLE)
-GET {{baseUrl}}/api/alertas/reorden
-Accept: application/json
-
-### 4. Filtrar Solo Materiales en Estado CRITICO (Stock <= PR)
-GET {{baseUrl}}/api/alertas/reorden/criticos
-Accept: application/json
-
-### 5. Auditoría Parte A: Órdenes de Compra Duplicadas (OC-1041 y OC-1042)
-GET {{baseUrl}}/api/alertas/duplicados?dias=3&tolerancia=0.05
-Accept: application/json
-
-### ============================================================================
-### MATERIALES
-### ============================================================================
-
-### 6. Listar Catálogo Completo de Materiales
-GET {{baseUrl}}/api/materiales
-Accept: application/json
-
-### 7. Consultar Material Específico por ID (Ej: Cemento gris 50 kg)
-GET {{baseUrl}}/api/materiales/1
-Accept: application/json
-
-### 8. Análisis de Reorden para un Material Específico
-GET {{baseUrl}}/api/materiales/1/reorden
-Accept: application/json
-
-### 9. Registrar Nuevo Material
-POST {{baseUrl}}/api/materiales
+### 2. Login: Jefatura de Área (Hasta ₡250,000)
+# @name loginJefaturaArea
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
 {
-  "codigo": "MAT-GRA-01",
-  "nombre": "Grava triturada 3/4 pulgada",
-  "descripcion": "Agregado grueso para concreto estructural",
-  "unidad_medida": "m3",
-  "precio_unitario": 420.00,
-  "stock_minimo": 15
+  "email": "carlos.mendoza@constructoradelvalle.com",
+  "password": "Password123!"
+}
+
+### 3. Login: Jefatura de Compras (₡250,001 a ₡2,000,000)
+# @name loginJefaturaCompras
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "sofia.ramirez@constructoradelvalle.com",
+  "password": "Password123!"
+}
+
+### 4. Login: Gerencia Financiera (₡2,000,001 a ₡10,000,000)
+# @name loginGerenciaFinanciera
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "fernando.castro@constructoradelvalle.com",
+  "password": "Password123!"
+}
+
+### 5. Login: Gerencia General (Superior a ₡10,000,000 + Comité)
+# @name loginGerenciaGeneral
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "daniel.ortega@constructoradelvalle.com",
+  "password": "Password123!"
+}
+
+### 6. Perfil del Usuario Autenticado Actual (/api/auth/me)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{loginJefaturaCompras.response.body.data.token}}
+Accept: application/json
+
+### 7. Registrar Nuevo Usuario en el Sistema
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Arq. Mariana Solano",
+  "email": "mariana.solano@constructoradelvalle.com",
+  "password": "Password123!",
+  "rol": "jefatura_area"
 }
 
 ### ============================================================================
-### ÓRDENES DE COMPRA
+### ÓRDENES DE COMPRA & MATRIZ DE APROBACIÓN
 ### ============================================================================
 
-### 10. Listar Todas las Órdenes de Compra de Octubre
+### 8. Listar Órdenes de Compra con Estado de Aprobación
 GET {{baseUrl}}/api/ordenes
 Accept: application/json
 
-### 11. Detalle de Orden de Compra por ID con Partidas (Ej: OC-1041)
-GET {{baseUrl}}/api/ordenes/4
+### 9. Filtrar Órdenes de Compra en Estado 'pendiente'
+GET {{baseUrl}}/api/ordenes?estado_aprobacion=pendiente
 Accept: application/json
 
-### 12. Detalle de Orden Duplicada (Ej: OC-1042)
-GET {{baseUrl}}/api/ordenes/5
+### 10. Consultar Detalle de Orden Específica con Partidas y Matriz
+GET {{baseUrl}}/api/ordenes/9
+Accept: application/json
+
+### 11. Crear Nueva Orden de Compra (Clasificación Automática en la Matriz)
+# Se crea una orden por 1,500 sacos de cemento (~₡277,500) -> Requiere Jefatura de Compras
+POST {{baseUrl}}/api/ordenes
+Content-Type: application/json
+
+{
+  "numero_orden": "OC-2026-N01",
+  "id_proveedor": 1,
+  "fecha_emision": "2026-11-09",
+  "observaciones": "Reabastecimiento regular para frentes activos",
+  "partidas": [
+    {
+      "id_material": 1,
+      "cantidad": 1500,
+      "precio_unitario": 185.00
+    }
+  ]
+}
+
+### 12. Aprobar Orden de Compra (Validación de Jerarquía por Token JWT)
+# Prueba de éxito: Jefatura de Compras aprueba orden que requiere jefatura_compras
+PATCH {{baseUrl}}/api/ordenes/8/aprobar
+Authorization: Bearer {{loginJefaturaCompras.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "accion": "aprobada"
+}
+
+### 13. Rechazar Orden de Compra (Con Motivo Obligatorio)
+PATCH {{baseUrl}}/api/ordenes/9/aprobar
+Authorization: Bearer {{loginGerenciaFinanciera.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "accion": "rechazada",
+  "motivo": "Excede el presupuesto asignado para el trimestre según auditoría interna"
+}
+
+### 14. Intento de Aprobación Inválida (Jerarquía Insuficiente -> HTTP 403)
+# Jefatura de Área intenta aprobar orden de ₡3,500,000 (requiere Gerencia Financiera)
+PATCH {{baseUrl}}/api/ordenes/9/aprobar
+Authorization: Bearer {{loginJefaturaArea.response.body.data.token}}
+Content-Type: application/json
+
+{
+  "accion": "aprobada"
+}
+
+### ============================================================================
+### ALERTAS, REORDEN Y AUDITORÍA
+### ============================================================================
+
+### 15. Resumen Ejecutivo de Alertas
+GET {{baseUrl}}/api/alertas/resumen
+Accept: application/json
+
+### 16. Análisis de Reorden Riguroso (Math.ceil)
+GET {{baseUrl}}/api/alertas/reorden
+Accept: application/json
+
+### 17. Materiales en Nivel Crítico (Stock <= PR)
+GET {{baseUrl}}/api/alertas/reorden/criticos
+Accept: application/json
+
+### 18. Auditoría Parte A: Órdenes de Compra Duplicadas (OC-1041 y OC-1042)
+GET {{baseUrl}}/api/alertas/duplicados?dias=3&tolerancia=0.10
 Accept: application/json
 
 ### ============================================================================
-### MOVIMIENTOS E INVENTARIO
+### MATERIALES & MOVIMIENTOS
 ### ============================================================================
 
-### 13. Historial de Movimientos de Inventario
+### 19. Catálogo de Materiales
+GET {{baseUrl}}/api/materiales
+Accept: application/json
+
+### 20. Historial de Movimientos de Inventario
 GET {{baseUrl}}/api/movimientos?limit=20
 Accept: application/json
 
-### 14. Filtrar Movimientos por Tipo (TRANSFERENCIA)
-GET {{baseUrl}}/api/movimientos?tipo=TRANSFERENCIA
-Accept: application/json
-
-### 15. Registrar un Nuevo Movimiento de Inventario
+### 21. Registrar Movimiento Transaccional (ACID con validación de saldo)
 POST {{baseUrl}}/api/movimientos
 Content-Type: application/json
 
 {
   "tipo_movimiento": "TRANSFERENCIA",
   "id_material": 1,
-  "id_bodega_origen": 1,
-  "id_bodega_destino": 2,
   "cantidad": 50,
-  "documento_referencia": "DESP-OBR-105",
-  "observaciones": "Envío adicional de cemento para refuerzo"
+  "ubicacion_origen": "Bodega Central",
+  "ubicacion_destino": "Obra Torre Norte",
+  "documento_referencia": "DESP-NOV-01",
+  "observaciones": "Traslado rutinario de cemento para armado"
 }
-
-### 16. Consultar Existencias por Bodega / Obra
-GET {{baseUrl}}/api/inventario/stock
-Accept: application/json
-
-### 17. Consultar Stock Consolidado Global de Materiales
-GET {{baseUrl}}/api/inventario/consolidado
-Accept: application/json
-

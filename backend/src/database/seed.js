@@ -39,9 +39,10 @@ const runMigrationAndSeed = async () => {
     console.log('------------------------------------------------------------');
     console.log('✅ Esquema y datos semilla aplicados con éxito:');
     console.log('   - Base de datos: constructora_del_valle');
-    console.log('   - Tablas: materiales, bodegas, proveedores, ordenes_compra, orden_compra_detalles, movimientos_inventario, inventario_stock');
+    console.log('   - Tablas: usuarios (RBAC/JWT), materiales, proveedores, ordenes_compra (Matriz Aprobación), orden_compra_detalles, movimientos, inventario_stock');
     console.log('   - Insumos: Cemento gris 50 kg, Varilla #3 grado 40, Block 12x20x40, Arena');
     console.log('   - Auditoría: Casos de compras duplicadas de la Parte A (OC-1041 y OC-1042)');
+    console.log('   - Seguridad: Usuarios semilla por rol con contraseña "Password123!"');
     console.log('------------------------------------------------------------');
   } catch (error) {
     console.error('❌ Error durante la migración y siembra:', error.message);
@@ -55,4 +56,3 @@ const runMigrationAndSeed = async () => {
 };
 
 runMigrationAndSeed();
-
