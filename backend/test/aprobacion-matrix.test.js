@@ -111,3 +111,4 @@ test.describe('Pruebas Unitarias - Cifrado Bcrypt y Emisión de JWT', () => {
     assert.equal(decoded.rol, 'jefatura_area');
   });
 });
+

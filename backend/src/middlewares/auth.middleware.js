@@ -121,3 +121,4 @@ module.exports = {
   JERARQUIA_ROLES,
   JWT_SECRET
 };
+
